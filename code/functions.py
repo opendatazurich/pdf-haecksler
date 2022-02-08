@@ -54,7 +54,7 @@ class TimeoutException(Exception):
 
 def timeout_handler(num, stack):
     '''
-    Hanlder for signal module
+    Handler for signal module
     '''
     raise TimeoutException
 

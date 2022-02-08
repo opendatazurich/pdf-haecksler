@@ -10,11 +10,9 @@ services:
       dockerfile: Dockerfile
     volumes:
       - ./code:/app/code
-      - ../_data/raw/test:/data/input_dir
-      - ../_data/outputs:/data/output_dir
+      - ../_data/raw/test:/data/input_dir # configure left side for input
+      - ../_data/outputs:/data/output_dir # configure left side for output
     environment:
-      INPUT_PATH  : "../../data/input_dir/"
-      OUTPUT_PATH : "../../data/output_dir/"
       PYTHONUNBUFFERED : 1
       CROP_OFFSET : 0.04
       THUMB_SIZE  : 190

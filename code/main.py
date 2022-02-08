@@ -9,16 +9,16 @@ transformers.utils.logging.set_verbosity_error()
 ## GLOBAL VARIABLES ##
 ######################
 
-INPUT_PATH = os.getenv("INPUT_PATH")                    # "../../_data/raw/test/"
-OUTPUT_PATH = os.getenv("OUTPUT_PATH")                  # "../../_data/outputs/"
 CROP_OFFSET = float(os.getenv("CROP_OFFSET"))           # 0.03 (percentage)
 THUMB_SIZE = int(os.getenv("THUMB_SIZE"))               # 190 (pixels)
-THRESHOLD = float(os.getenv("THRESHOLD"))               # 0.75
+THRESHOLD = float(os.getenv("THRESHOLD"))               # 0.75 (percentage)
 PROCESSING_RES = int(os.getenv("PROCESSING_RES"))       # 300 (dpi)
-COMPRESSION_LEVEL = int(os.getenv("COMPRESSION_LEVEL")) # 4
+COMPRESSION_LEVEL = int(os.getenv("COMPRESSION_LEVEL")) # 4 (ghostscript compression category)
 COMPRESSION_WAIT = int(os.getenv("COMPRESSION_WAIT"))   # 300 (seconds)
 MODEL = "model/model.ckpt"
 MODEL_BASIS = "facebook/detr-resnet-50"
+INPUT_PATH  = "../../data/input_dir/"
+OUTPUT_PATH = "../../data/output_dir/"
 
 ###################
 ## LOAD ML MODEL ##
