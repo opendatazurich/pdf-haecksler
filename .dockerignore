@@ -1,0 +1,8 @@
+.dockerignore
+.git
+Dockerfile
+**/.ipynb_checkpoints
+**/.DS_Store
+**/.env
+**/.git
+**/.gitignore

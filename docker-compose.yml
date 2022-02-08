@@ -1,0 +1,24 @@
+version: "3"
+
+services:
+  pdf_haecksler:
+    container_name: pdf_haecksler
+    image: pdf_haecksler
+    command: python3 -u code/main.py
+    build:
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./code:/app/code
+      - ../_data/raw/test:/data/input_dir
+      - ../_data/outputs:/data/output_dir
+    environment:
+      INPUT_PATH  : "../../data/input_dir/"
+      OUTPUT_PATH : "../../data/output_dir/"
+      PYTHONUNBUFFERED : 1
+      CROP_OFFSET : 0.04
+      THUMB_SIZE  : 190
+      THRESHOLD   : 0.75
+      PROCESSING_RES : 300
+      COMPRESSION_LEVEL : 4
+      COMPRESSION_WAIT : 300
