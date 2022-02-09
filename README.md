@@ -9,7 +9,7 @@ Extracting images from PDFs is a relatively straightforward task, but vector dra
 To tackle this challenge, the current approach is framing the problem as an <b>Object Detection</b> one. More specifically:
 - each PDF is initially converted into a list of (one or more) images.
 - each image of the PDF is fed into a fine-tuned Transformer network (DETR). The output includes two categories of information, namely the detected bounding box of each entity and its predicted class (0:image or 1:drawing).
-- each PDF is cropped into multiple PDF and/or PNG files and stored on disk, based on the detected bounded boxes.
+- each PDF is cropped into multiple PDF and/or PNG files and stored in disk, based on the detected bounded boxes.
 
 #### <u>Contents</u>
 - The project code is under the `/code` dir
