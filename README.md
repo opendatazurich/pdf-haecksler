@@ -16,7 +16,7 @@ To tackle this challenge, the current approach is framing the problem as an <b>O
 - The file `code/functions.py` contains all the functions and is called by `code/main.py`.
 - The trained model is <b>not</b> included in the repo, but must be added manually in `/model` as `model/model.ckpt`.
 
-*!!! The current version of the trained model, as well as the code configuration in this repository is working for PDF files that contain architectural drawings and renders. In the future, more categories can be added (like texts or tables). This will require an updated `model.ckpt` file, (which is out of the scope of this repository), as well as  some changes in the `code/function.py` file.*
+*!!! The current version of the trained model, as well as the code configuration in this repository is working for PDF files that contain architectural drawings and renders. In the future, more categories can be added (like texts or tables). This will require an updated `model.ckpt` file (which is out of the scope of this repository), as well as  some changes in the `code/function.py` file.*
 
 
 #### <u>Install</u>
