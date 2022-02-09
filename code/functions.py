@@ -18,6 +18,20 @@ import shutil
 import multiprocessing
 import signal
 import time
+from datetime import datetime
+import logging
+
+
+#############
+## Logging ##
+#############
+
+
+dt_string = datetime.now().strftime("%Y%m%d_%H%M%S")
+logging.basicConfig(filename=f'code/logs/{dt_string}.log', filemode='w', level=logging.INFO)
+stderrLogger=logging.StreamHandler()
+stderrLogger.setFormatter(logging.Formatter(logging.BASIC_FORMAT))
+logging.getLogger().addHandler(stderrLogger)
 
 
 ##########
@@ -38,7 +52,8 @@ def timer_print(indentation=""):
             t1 = time.time()
             result = func(*args,  **kwargs)
             t2 = time.time()
-            print(f"{indentation}ok : {f_time_report(t1,t2)}\n")
+            #print(f"{indentation}ok : {f_time_report(t1,t2)}\n")
+            logging.info(f"{indentation}ok : {f_time_report(t1,t2)}\n")
             return result
         return wrapper_function
     return timer
@@ -73,7 +88,8 @@ def try_to_compress(wait,function,*args):
         function(*args)
     except TimeoutException:
         os.remove(args[1])
-        print("\t\t\t! skipping optimization : too slow")
+        #print("\t\t\t! skipping optimization : too slow")
+        logging.info("\t\t\t! skipping optimization : too slow")
     finally:
         signal.alarm(0)
 
@@ -196,12 +212,12 @@ def crop_documents(input_path, output_path, brain, threshold=0.75, thumbsize=190
     inputs = glob.glob(input_path+"*.pdf")
     model = brain["model"]
     feature_extractor = brain["feature_extractor"]
-    print("PROCESSING INPUTS\n")
+    logging.info("PROCESSING INPUTS\n")
     for j,path in enumerate(inputs):
-        print(f"Processing {j+1} / {len(inputs)} PDFs\n")
+        logging.info(f"Processing {j+1} / {len(inputs)} PDFs\n")
         res = process_document(path, model, feature_extractor, threshold, conversion_dpi)
         crop_document(res, output_path, thumbsize, offset, compression_level,compression_wait)
-    print("Done")
+    logging.info("Done")
 
 
 def process_document(pdf_path, model, feature_extractor, threshold=0.75, conversion_dpi=300):
@@ -220,9 +236,9 @@ def process_document(pdf_path, model, feature_extractor, threshold=0.75, convers
             predictions (list) : 'infer' function output
             path (string) : path of pdf file
     '''
-    print("\tConverting PDF to images...")
+    logging.info("\tConverting PDF to images...")
     images = convert_pdf_to_images(pdf_path, dpi=conversion_dpi)
-    print("\tRunning inference...")
+    logging.info("\tRunning inference...")
     predictions = infer(images, model, feature_extractor, threshold)
     return {"predictions":predictions, "path":pdf_path}
 
@@ -261,18 +277,18 @@ def process_pages(pdf_path, predictions, fs, thumbsize=190, offset=0.01, compres
         compression_wait (int) : seconds to wait for compression
     '''
     doc = fitz.open(pdf_path)
-    print("\tExtracting indexed images...")
+    logging.info("\tExtracting indexed images...")
     indexed_bboxes = get_indexed_images(doc)
     num_pages = doc.page_count
-    print("\tProcessing pages...\n")
+    logging.info("\tProcessing pages...\n")
     for page_no in range(num_pages):
-        print(f"\t\tPage {page_no+1} / {num_pages}\n")
+        logging.info(f"\t\tPage {page_no+1} / {num_pages}\n")
         page = doc[page_no]
         prediction = predictions[page_no]
         if len(prediction['bboxes']) > 0:
             process_page(page, prediction, indexed_bboxes[page_no], fs, offset, thumbsize, compression_level,compression_wait)
         else:
-            print("\t\t- nothing found in this page")
+            logging.info("\t\t- nothing found in this page")
         doc.close()
         doc = fitz.open(pdf_path)
 
@@ -321,12 +337,12 @@ def process_bboxes(page, prediction, fs, offsets=None, thumbsize=190, compressio
     page_size = [*map(float,page.mediabox[2:])]
     page_bboxes = rescale_bboxes(bboxes, page_size, offsets)
     for i,bbox in enumerate(page_bboxes):
-        print(f"\t\t- processing area {i+1} / {len(page_bboxes)}")
+        logging.info(f"\t\t- processing area {i+1} / {len(page_bboxes)}")
         res = process_bbox(bbox, page, thumbsize)
         lbl = 'drawings' if labels[i]==1 else 'images'
         fname = f"{page.number+1}_{i+1}"
         save_cropped(res, fs[lbl], fname , compression_level, compression_wait)
-        print(f"\t\t\tsaved")
+        logging.info(f"\t\t\tsaved")
         res['drawing'].close()
 
 

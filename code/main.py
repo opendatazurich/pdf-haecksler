@@ -1,5 +1,3 @@
-import logging
-logging.disable(logging.INFO)
 from functions import *
 import warnings
 warnings.filterwarnings("ignore")
@@ -24,13 +22,13 @@ OUTPUT_PATH = "../../data/output_dir/"
 ## LOAD ML MODEL ##
 ###################
 
-print("\nLoading Model...\n")
+logging.info("Loading Model...\n")
 labels_no = 2
 feature_extractor = DetrFeatureExtractor.from_pretrained(MODEL_BASIS)
 model = Detr(labels_no, MODEL_BASIS)
 model_trained = model.load_from_checkpoint(MODEL,num_labels=labels_no,model_basis=MODEL_BASIS).eval()
 BRAIN = {"model":model_trained, "feature_extractor":feature_extractor}
-print("\n\n")
+logging.info("\n\n")
 
 ##################
 ## RUN CROPPING ##
