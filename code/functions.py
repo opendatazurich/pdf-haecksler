@@ -61,7 +61,7 @@ def timeout_handler(num, stack):
 
 def try_to_compress(wait,function,*args):
     '''
-    Break compression if very slow
+    Break pdf compression if very slow
 
     Parameters:
         wait (int) : seconds to wait
@@ -102,7 +102,7 @@ class Detr(pl.LightningModule):
 @timer_print(indentation="\t")
 def infer(images, model, feature_extractor, threshold = 0.75):
     '''
-    Extracts drawing and images regions from list of (pdf) images
+    Extracts drawing and image regions from a list of (pdf) images
 
     Parameters:
         images ([PIL.Image]) : list of PIL.Image objects
@@ -137,13 +137,14 @@ def infer(images, model, feature_extractor, threshold = 0.75):
 
 def plot_results(image, prediction, lw = 2, fsz = 10, offset=None):
     '''
-    Plots image with predicted bounding bboxes
+    Plots image with predicted bounding boxes
 
     Parameters:
-        image (PIL.Image) : image input
-        prediction (dict) : 'infer' function output
-        lw (int)          : bboxes linewidth
-        fsz (int)         : font size
+        image (PIL.Image)   : image input
+        prediction (dict)   : 'infer' function output
+        lw (int)            : bboxes linewidth
+        fsz (int)           : font size
+        offset (float|None) : amount of bounding boxes offset as percentage
     '''
     offsets = [offset] if offset else None
     boxes = np.array(prediction["bboxes"])
@@ -279,7 +280,7 @@ def process_pages(pdf_path, predictions, fs, thumbsize=190, offset=0.01, compres
 @timer_print(indentation="\t\t")
 def process_page(page,prediction,indexed_bboxes, fs, offset, thumbsize, compression_level,compression_wait):
     '''
-    Crops a single PDF page - called by process_pages
+    Crops a single PDF page - called by 'process_pages' function
 
     Parameters:
         page (fitz.Page) : pdf page
@@ -532,7 +533,7 @@ def convert_pdf_to_images(path,dpi=300):
         dpi (int) : image dpi resolution
 
     Returns:
-        ([Pil.Image]) : list of images
+        ([PIL.Image]) : list of images
     '''
     images = []
     doc = fitz.open(path)
