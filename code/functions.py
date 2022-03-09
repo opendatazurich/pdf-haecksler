@@ -50,9 +50,8 @@ def timer_print(indentation=""):
         f_time_report = lambda t1,t2: f"{int(np.divide(t2-t1,60))}m {round(np.mod(t2-t1,60),1)}s"
         def wrapper_function(*args, **kwargs):
             t1 = time.time()
-            result = func(*args,  **kwargs)
+            result = func(*args, **kwargs)
             t2 = time.time()
-            #print(f"{indentation}ok : {f_time_report(t1,t2)}\n")
             logging.info(f"{indentation}ok : {f_time_report(t1,t2)}\n")
             return result
         return wrapper_function
@@ -88,7 +87,6 @@ def try_to_compress(wait,function,*args):
         function(*args)
     except TimeoutException:
         os.remove(args[1])
-        #print("\t\t\t! skipping optimization : too slow")
         logging.info("\t\t\t! skipping optimization : too slow")
     finally:
         signal.alarm(0)
@@ -186,6 +184,36 @@ def plot_results(image, prediction, lw = 2, fsz = 10, offset=None):
 ##############
 ## Cropping ##
 ##############
+
+
+def crop_documents_single(input_path, output_path, brain, threshold=0.75, thumbsize=190,
+                          offset=0.01, conversion_dpi=300, compression_level=4,compression_wait=300):
+    '''
+    Crops PDF document into individual drawings and images
+
+    Parameters:
+        input_path (string) : path to PDF file
+        output_path (string) : path to output directory
+        brain (dict) : ditionary containing fields ->
+            model (Detr) : trained Detr model
+            feature_extractor (DetrFeatureExtractor) : Detr feature extractor object from huggingface transformers
+        threshold (float) : level of accepted confidence for output predictions
+        thumbsize (int) : size for thumbnail
+        offset (float) : offset percentage from actual bounding box prediction
+        conversion_dpi (int) : pdf-to-image conversion resolution
+        compression_level (int) : cropped pdf compression level (ghostscript)
+        compression_wait (int) : seconds to wait for compression
+
+    Returns
+        (list) : list of 'process_document' function outputs
+    '''
+    inputs = glob.glob(input_path+"*.pdf")
+    model = brain["model"]
+    feature_extractor = brain["feature_extractor"]
+    logging.info("PROCESSING SINGLE INPUT\n")
+    res = process_document(input_path, model, feature_extractor, threshold, conversion_dpi)
+    crop_document(res, output_path, thumbsize, offset, compression_level,compression_wait)
+    logging.info("Done")
 
 
 def crop_documents(input_path, output_path, brain, threshold=0.75, thumbsize=190,
