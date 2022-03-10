@@ -28,7 +28,7 @@ import logging
 
 
 dt_string = datetime.now().strftime("%Y%m%d_%H%M%S")
-logging.basicConfig(filename=f'code/logs/{dt_string}.log', filemode='w', level=logging.INFO)
+logging.basicConfig(filename=f'src/app/logs/{dt_string}.log', filemode='w', level=logging.INFO)
 stderrLogger=logging.StreamHandler()
 stderrLogger.setFormatter(logging.Formatter(logging.BASIC_FORMAT))
 logging.getLogger().addHandler(stderrLogger)

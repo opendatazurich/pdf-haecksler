@@ -1,22 +1,54 @@
-version: "3"
+version: "3.9"
 
 services:
-  pdf_haecksler:
-    container_name: pdf_haecksler
+  api:
+    container_name: pdfhaecksler-api
     image: pdf_haecksler
-    command: python3 -u code/main.py
+    command: bash -c "alembic upgrade head && uvicorn src.api.main:app --reload --host 0.0.0.0"
     build:
-      context: .
+      context: backend
       dockerfile: Dockerfile
+    restart: on-failure
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
     volumes:
-      - ./code:/app/code
-      - ../_data/raw/test:/data/input_dir # configure left side for input
-      - ../_data/outputs:/data/output_dir # configure left side for output
+      - ./backend/src:/app/src
+      - ./backend/alembic:/app/alembic
+      - ./backend/alembic.ini:/app/alembic.ini
+    env_file:
+      - .env
     environment:
-      PYTHONUNBUFFERED : 1
-      CROP_OFFSET : 0.04
-      THUMB_SIZE  : 190
-      THRESHOLD   : 0.75
-      PROCESSING_RES : 300
-      COMPRESSION_LEVEL : 4
-      COMPRESSION_WAIT : 300
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_HASH_SECRET: ${POSTGRES_HASH_SECRET}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_SERVICE_NAME: ${POSTGRES_SERVICE_NAME}
+      PYTHONUNBUFFERED: 1
+      CROP_OFFSET: 0.04
+      THUMB_SIZE: 190
+      THRESHOLD: 0.75
+      PROCESSING_RES: 300
+      COMPRESSION_LEVEL: 4
+      COMPRESSION_WAIT: 300
+
+
+  db:
+    container_name: pdfhaecksler-db
+    image: postgres:11.5-alpine
+    ports:
+      - "5432:5432"
+    env_file:
+      - .env
+    volumes:
+      - ./db/postgres-data:/var/lib/postgresql/data:cached
+    environment:
+      POSTGRES_PASSWORD : ${POSTGRES_PASSWORD}
+      POSTGRES_DB : ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+    healthcheck:
+        test: ["CMD-SHELL", "psql -U $POSTGRES_USER", "pg_isready"]
+        interval: 7s
+        timeout: 60s
+        retries: 30

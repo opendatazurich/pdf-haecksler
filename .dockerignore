@@ -1,5 +1,6 @@
 .dockerignore
 .git
+.env
 Dockerfile
 **/.ipynb_checkpoints
 **/.DS_Store
