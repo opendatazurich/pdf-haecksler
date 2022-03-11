@@ -16,6 +16,7 @@ services:
       - "8000:8000"
     volumes:
       - ./backend/src:/app/src
+      - ./backend/data:/app/data
       - ./backend/alembic:/app/alembic
       - ./backend/alembic.ini:/app/alembic.ini
     env_file:
@@ -33,7 +34,6 @@ services:
       COMPRESSION_LEVEL: 4
       COMPRESSION_WAIT: 300
 
-
   db:
     container_name: pdfhaecksler-db
     image: postgres:11.5-alpine
@@ -48,7 +48,7 @@ services:
       POSTGRES_DB : ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
     healthcheck:
-        test: ["CMD-SHELL", "psql -U $POSTGRES_USER", "pg_isready"]
-        interval: 7s
-        timeout: 60s
-        retries: 30
+      test: ["CMD-SHELL", "psql -U $POSTGRES_USER", "pg_isready"]
+      interval: 7s
+      timeout: 60s
+      retries: 30

@@ -186,13 +186,13 @@ def plot_results(image, prediction, lw = 2, fsz = 10, offset=None):
 ##############
 
 
-def crop_documents_single(input_path, output_path, brain, threshold=0.75, thumbsize=190,
+def crop_documents_single(input, output_path, brain, threshold=0.75, thumbsize=190,
                           offset=0.01, conversion_dpi=300, compression_level=4,compression_wait=300):
     '''
     Crops PDF document into individual drawings and images
 
     Parameters:
-        input_path (string) : path to PDF file
+        input (bytes) : byte stream of PDF file
         output_path (string) : path to output directory
         brain (dict) : ditionary containing fields ->
             model (Detr) : trained Detr model
@@ -207,11 +207,10 @@ def crop_documents_single(input_path, output_path, brain, threshold=0.75, thumbs
     Returns
         (list) : list of 'process_document' function outputs
     '''
-    inputs = glob.glob(input_path+"*.pdf")
     model = brain["model"]
     feature_extractor = brain["feature_extractor"]
     logging.info("PROCESSING SINGLE INPUT\n")
-    res = process_document(input_path, model, feature_extractor, threshold, conversion_dpi)
+    res = process_document(input, model, feature_extractor, threshold, conversion_dpi)
     crop_document(res, output_path, thumbsize, offset, compression_level,compression_wait)
     logging.info("Done")
 
@@ -248,12 +247,12 @@ def crop_documents(input_path, output_path, brain, threshold=0.75, thumbsize=190
     logging.info("Done")
 
 
-def process_document(pdf_path, model, feature_extractor, threshold=0.75, conversion_dpi=300):
+def process_document(pdf, model, feature_extractor, threshold=0.75, conversion_dpi=300):
     '''
     Predicts bounding boxes on a single document
 
     Parameters:
-        input_path (string) : path of pdf file
+        pdf (string|bytes) : path or bytes stream of pdf file
         model (Detr) : trained Detr model
         feature_extractor (DetrFeatureExtractor) : Detr feature extractor object from huggingface transformers
         threshold (float) : level of accepted confidence for output predictions
@@ -265,10 +264,10 @@ def process_document(pdf_path, model, feature_extractor, threshold=0.75, convers
             path (string) : path of pdf file
     '''
     logging.info("\tConverting PDF to images...")
-    images = convert_pdf_to_images(pdf_path, dpi=conversion_dpi)
+    images = convert_pdf_to_images(pdf, dpi=conversion_dpi)
     logging.info("\tRunning inference...")
     predictions = infer(images, model, feature_extractor, threshold)
-    return {"predictions":predictions, "path":pdf_path}
+    return {"predictions":predictions, "pdf":pdf}
 
 
 def crop_document(processed_doc, output_path, thumbsize=190, offset=0.01, compression_level=4,compression_wait=300):
@@ -285,18 +284,18 @@ def crop_document(processed_doc, output_path, thumbsize=190, offset=0.01, compre
     '''
     fs_structure = {"images"   : {"pdf":{"optimized":{},"original":{}}, "png":{}, "thumbs":{}},
                     "drawings" : {"pdf":{"optimized":{},"original":{}}, "png":{}, "thumbs":{}}}
-    pdf_path = processed_doc["path"]
+    pdf = processed_doc["pdf"]
     predictions = processed_doc["predictions"]
-    fs = create_file_structure(pdf_path, output_path, fs_structure)
-    process_pages(pdf_path,predictions,fs,thumbsize,offset,compression_level,compression_wait)
+    fs = create_file_structure(pdf, output_path, fs_structure)
+    process_pages(pdf,predictions,fs,thumbsize,offset,compression_level,compression_wait)
 
 
-def process_pages(pdf_path, predictions, fs, thumbsize=190, offset=0.01, compression_level=4, compression_wait=300 ):
+def process_pages(pdf, predictions, fs, thumbsize=190, offset=0.01, compression_level=4, compression_wait=300 ):
     '''
     Crops a single PDF document - called by 'crop_document' function
 
     Parameters:
-        pdf_path (string) : path of PDF file
+        pdf (string|bytes) : path or bytes stream of PDF file
         predictions (list) : list of 'process_document' function outputs
         fs (dict) : output of 'create_fs' function - to save results
         thumbsize (int) : size for thumbnail
@@ -304,7 +303,8 @@ def process_pages(pdf_path, predictions, fs, thumbsize=190, offset=0.01, compres
         compression_level (int) : cropped pdf compression level (ghostscript)
         compression_wait (int) : seconds to wait for compression
     '''
-    doc = fitz.open(pdf_path)
+    open_doc = lambda f: fitz.open(f) if type(f)==str else fitz.open(stream=f, filetype="pdf")
+    doc = open_doc(pdf)
     logging.info("\tExtracting indexed images...")
     indexed_bboxes = get_indexed_images(doc)
     num_pages = doc.page_count
@@ -318,7 +318,7 @@ def process_pages(pdf_path, predictions, fs, thumbsize=190, offset=0.01, compres
         else:
             logging.info("\t\t- nothing found in this page")
         doc.close()
-        doc = fitz.open(pdf_path)
+        doc = open_doc(pdf)
 
 
 @timer_print(indentation="\t\t")
@@ -568,19 +568,19 @@ def iou(box1, box2):
 
 
 @timer_print(indentation="\t")
-def convert_pdf_to_images(path,dpi=300):
+def convert_pdf_to_images(pdf,dpi=300):
     '''
     Convert a pdf file to a list of images.
 
     Parameters:
-        path (string) : path of the pdf file
+        pdf (string|bytes) : path or byte stream of the pdf file
         dpi (int) : image dpi resolution
 
     Returns:
         ([PIL.Image]) : list of images
     '''
     images = []
-    doc = fitz.open(path)
+    doc = fitz.open(pdf) if type(pdf)==str else fitz.open(stream=pdf, filetype="pdf")
     for page in doc.pages():
         img = image_from_pdf_page(page,dpi=dpi)
         images.append(img)
@@ -638,19 +638,19 @@ def get_ghostscript_path():
     raise FileNotFoundError(f'No GhostScript executable was found on path ({"/".join(gs_names)})')
 
 
-def create_file_structure(pdf_path, target, struct):
+def create_file_structure(pdf, target, struct):
     '''
     Creates the output file structure
 
     Parameters:
-        pdf_path (string) : path of PDF file (its name will be the name of the output dir)
+        pdf (string|bytes) : path or bytes stream of PDF file (its name will be the name of the output dir)
         target (string) : directory path for output
         struct (dict) : desired file structure
 
     Returns:
         (dict) : dictionary containing all the created paths as values
     '''
-    name = pdf_path.split("/")[-1].split(".")[0]
+    name = pdf.split("/")[-1].split(".")[0] if type(pdf)==str else ''
     root_path = f"{target}/{name}"
     if not os.path.exists(root_path):
         os.mkdir(root_path)
@@ -688,4 +688,4 @@ def create_fs(dicts, roots, parent, paths=[]):
     else:
         _ = [*map(lambda p: os.mkdir(p) if not os.path.exists(p) else None, paths)]
         paths_dict = dict(map(lambda s: [s.replace(parent+"/","").replace("/","_"), s + "/"], paths))
-        return paths_dict
+        return paths_dict        

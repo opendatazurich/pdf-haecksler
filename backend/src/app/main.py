@@ -7,16 +7,15 @@ transformers.utils.logging.set_verbosity_error()
 ## GLOBAL VARIABLES ##
 ######################
 
-CROP_OFFSET = 0.03 #float(os.getenv("CROP_OFFSET"))           # 0.03 (percentage)
-THUMB_SIZE = 190 #int(os.getenv("THUMB_SIZE"))               # 190 (pixels)
-THRESHOLD = 0.75 #float(os.getenv("THRESHOLD"))               # 0.75 (percentage)
-PROCESSING_RES = 300 #int(os.getenv("PROCESSING_RES"))       # 300 (dpi)
-COMPRESSION_LEVEL = 4 #int(os.getenv("COMPRESSION_LEVEL")) # 4 (ghostscript compression category)
-COMPRESSION_WAIT = 200 #int(os.getenv("COMPRESSION_WAIT"))   # 300 (seconds)
+CROP_OFFSET = float(os.getenv("CROP_OFFSET"))           # 0.03 (percentage)
+THUMB_SIZE = int(os.getenv("THUMB_SIZE"))               # 190 (pixels)
+THRESHOLD = float(os.getenv("THRESHOLD"))               # 0.75 (percentage)
+PROCESSING_RES = int(os.getenv("PROCESSING_RES"))       # 300 (dpi)
+COMPRESSION_LEVEL = int(os.getenv("COMPRESSION_LEVEL")) # 4 (ghostscript compression category)
+COMPRESSION_WAIT = int(os.getenv("COMPRESSION_WAIT"))   # 300 (seconds)
 MODEL = "model/model.ckpt"
 MODEL_BASIS = "facebook/detr-resnet-50"
-INPUT_PATH  = "../../data/input_dir/"
-OUTPUT_PATH = "../../data/output_dir/"
+OUTPUT_PATH = "data/output_dir/"
 
 ###################
 ## LOAD ML MODEL ##
@@ -34,7 +33,13 @@ logging.info("\n\n")
 ## FUNCTION CALLS ##
 ####################
 
-# res = crop_documents(INPUT_PATH, OUTPUT_PATH, BRAIN, THRESHOLD, THUMB_SIZE,
-#                      CROP_OFFSET, PROCESSING_RES, COMPRESSION_LEVEL, COMPRESSION_WAIT)
-def check(tsize, thresh):
-    return f"{tsize} and {thresh}"
+def process_pdf_stream(stream, fname, user=None):
+    logging.info(f"\nUser: {user} - File: {fname}\n")
+    user = f"{user}/" if user else ""
+    if not os.path.exists(OUTPUT_PATH+user):
+        os.mkdir(OUTPUT_PATH+user)
+    out = OUTPUT_PATH+user+fname
+    res = crop_documents_single(stream, out, BRAIN, THRESHOLD, THUMB_SIZE,
+                                CROP_OFFSET, PROCESSING_RES, COMPRESSION_LEVEL, COMPRESSION_WAIT)
+    zippath = shutil.make_archive('fname','zip',out)
+    return zippath
