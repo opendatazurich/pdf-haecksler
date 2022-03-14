@@ -15,7 +15,17 @@ COMPRESSION_LEVEL = int(os.getenv("COMPRESSION_LEVEL")) # 4 (ghostscript compres
 COMPRESSION_WAIT = int(os.getenv("COMPRESSION_WAIT"))   # 300 (seconds)
 MODEL = "model/model.ckpt"
 MODEL_BASIS = "facebook/detr-resnet-50"
-OUTPUT_PATH = "data/output_dir/"
+OUTPUT_PATH = "data/tmp/"
+
+################
+## CATEGORIES ##
+################
+
+
+
+CATEGORIES = { 0 : { "label":"image"  , "output_fs": {"pdf":{"optimized":{},"original":{}}, "png":{}, "thumbs":{}} },
+               1 : { "label":"drawing", "output_fs": {"pdf":{"optimized":{},"original":{}}, "png":{}, "thumbs":{}} }}
+
 
 ###################
 ## LOAD ML MODEL ##
@@ -34,12 +44,13 @@ logging.info("\n\n")
 ####################
 
 def process_pdf_stream(stream, fname, user=None):
-    logging.info(f"\nUser: {user} - File: {fname}\n")
+    logging.info(f"\tUser: {user} - File: {fname}\n")
     user = f"{user}/" if user else ""
     if not os.path.exists(OUTPUT_PATH+user):
         os.mkdir(OUTPUT_PATH+user)
     out = OUTPUT_PATH+user+fname
-    res = crop_documents_single(stream, out, BRAIN, THRESHOLD, THUMB_SIZE,
-                                CROP_OFFSET, PROCESSING_RES, COMPRESSION_LEVEL, COMPRESSION_WAIT)
-    zippath = shutil.make_archive('fname','zip',out)
-    return zippath
+    crop_document_stream(stream, out, BRAIN, CATEGORIES, THRESHOLD, THUMB_SIZE,
+                          CROP_OFFSET, PROCESSING_RES, COMPRESSION_LEVEL, COMPRESSION_WAIT)
+    zpath = shutil.make_archive(out,'zip',out)
+    shutil.rmtree(OUTPUT_PATH+user) if user!="" else shutil.rmtree(out)
+    return zpath

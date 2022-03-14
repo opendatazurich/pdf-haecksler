@@ -135,7 +135,7 @@ def infer(images, model, feature_extractor, threshold = 0.75):
     _images = [*map(copy.deepcopy,images)]
     pixel_values = feature_extractor(_images,return_tensors="pt")['pixel_values']
     outputs = model(pixel_values=pixel_values, pixel_mask=None)
-    probas = outputs.logits.softmax(-1)[:, :, :-1]
+    probas = outputs.logits.softmax(-1)[:,:,:-1]
     keep = probas.max(-1).values > threshold
     bboxes = [*map(lambda x: f_bbox(x[1][keep[x[0]]].detach().numpy()).tolist() , enumerate(outputs.pred_boxes))]
     labels = [*map(lambda x: x[1][keep[x[0]]].detach().argmax(1).numpy().tolist() , enumerate(probas))]
@@ -149,13 +149,14 @@ def infer(images, model, feature_extractor, threshold = 0.75):
 ##############
 
 
-def plot_results(image, prediction, lw = 2, fsz = 10, offset=None):
+def plot_results(image, prediction, label_map, lw = 2, fsz = 10, offset=None):
     '''
     Plots image with predicted bounding boxes
 
     Parameters:
         image (PIL.Image)   : image input
         prediction (dict)   : 'infer' function output
+        label_map (dict)    : label_map (dict) : category id to category name
         lw (int)            : bboxes linewidth
         fsz (int)           : font size
         offset (float|None) : amount of bounding boxes offset as percentage
@@ -164,8 +165,12 @@ def plot_results(image, prediction, lw = 2, fsz = 10, offset=None):
     boxes = np.array(prediction["bboxes"])
     probs = np.array(prediction["probs"])
     boxes = rescale_bboxes(boxes,image.size,offsets=offsets)
-    texts = { 0:"image", 1:"drawing" }
-    colors = {0:[1.0,0.0,0.0],1:[0.0,0.0,1.0]}
+    texts = label_map # { 0:"image", 1:"drawing" }
+    r = np.linspace(0,1,sz)
+    g = np.linspace(0,1,sz)
+    b = np.linspace(1,0,sz)
+    clr_arr = np.array([np.array([r,g,b]).T])
+    colors = dict(enumerate(map(list,clr_arr[0])))
     plt.figure(figsize=(16,10))
     plt.imshow(image)
     ax = plt.gca()
@@ -175,7 +180,7 @@ def plot_results(image, prediction, lw = 2, fsz = 10, offset=None):
         color = colors[cl]
         ax.add_patch(plt.Rectangle((xmin, ymin), xmax - xmin, ymax - ymin, fill=False, color=color, linewidth=lw))
         text = f'{i} - {texts[cl]}: {p.max():0.2f}'
-        ax.text(xmin, ymin, text, fontsize=fsz, bbox=dict(facecolor='yellow', alpha=0.5))
+        ax.text(xmin, ymin, text, fontsize=fsz, bbox=dict(facecolor='red', alpha=0.5))
         i+=1
     plt.axis('off')
     plt.show()
@@ -186,55 +191,63 @@ def plot_results(image, prediction, lw = 2, fsz = 10, offset=None):
 ##############
 
 
-def crop_documents_single(input, output_path, brain, threshold=0.75, thumbsize=190,
-                          offset=0.01, conversion_dpi=300, compression_level=4,compression_wait=300):
+def crop_document_stream(input, output_path, brain, categories, threshold=0.75, thumbsize=190,
+                         offset=0.01, conversion_dpi=300, compression_level=4,compression_wait=300):
     '''
-    Crops PDF document into individual drawings and images
+    Crops a PDF document stream into individual drawings and images
 
     Parameters:
-        input (bytes) : byte stream of PDF file
+        input (bytes) : byte-stream of PDF file
         output_path (string) : path to output directory
         brain (dict) : ditionary containing fields ->
-            model (Detr) : trained Detr model
-            feature_extractor (DetrFeatureExtractor) : Detr feature extractor object from huggingface transformers
+            -model (Detr) : trained Detr model
+            -feature_extractor (DetrFeatureExtractor) : Detr feature extractor object from huggingface transformers
+        categories (dict) : dictionary containing information about prediction classes containing fields ->
+            -label (dict) : mapping of label number to label name
+            -output_fs (dict) : output file structure for each label
+                                eg : {"label_1" : {},
+                                      "label_2" : { "field_1" : {},
+                                                    "field_2" : {"subfield_1":{}}},
+                                      "label_3" : { "field_1" : {} }}
         threshold (float) : level of accepted confidence for output predictions
         thumbsize (int) : size for thumbnail
         offset (float) : offset percentage from actual bounding box prediction
         conversion_dpi (int) : pdf-to-image conversion resolution
         compression_level (int) : cropped pdf compression level (ghostscript)
         compression_wait (int) : seconds to wait for compression
-
-    Returns
-        (list) : list of 'process_document' function outputs
     '''
     model = brain["model"]
     feature_extractor = brain["feature_extractor"]
-    logging.info("PROCESSING SINGLE INPUT\n")
+    logging.info("\tPROCESSING SINGLE INPUT\n")
     res = process_document(input, model, feature_extractor, threshold, conversion_dpi)
-    crop_document(res, output_path, thumbsize, offset, compression_level,compression_wait)
+    crop_document(res, output_path, categories, thumbsize, offset, compression_level,compression_wait)
     logging.info("Done")
 
 
-def crop_documents(input_path, output_path, brain, threshold=0.75, thumbsize=190,
-                   offset=0.01, conversion_dpi=300, compression_level=4,compression_wait=300):
+def crop_documents_batch(input_path, output_path, brain, categories, threshold=0.75, thumbsize=190,
+                         offset=0.01, conversion_dpi=300, compression_level=4,compression_wait=300):
     '''
-    Crops PDF document into individual drawings and images
+    Crops PDF documents into individual drawings and images
 
     Parameters:
         input_path (string) : path to PDF container directory
         output_path (string) : path to output directory
         brain (dict) : ditionary containing fields ->
-            model (Detr) : trained Detr model
-            feature_extractor (DetrFeatureExtractor) : Detr feature extractor object from huggingface transformers
+            -model (Detr) : trained Detr model
+            -feature_extractor (DetrFeatureExtractor) : Detr feature extractor object from huggingface transformers
+        categories (dict) : dictionary containing information about prediction classes containing fields ->
+            -label (dict) : mapping of label number to label name
+            -output_fs (dict) : output file structure for each label
+                               eg : {"label_1" : {},
+                                     "label_2" : { "field_1" : {},
+                                                   "field_2" : {"subfield_1":{}}},
+                                     "label_3" : { "field_1" : {} }}
         threshold (float) : level of accepted confidence for output predictions
         thumbsize (int) : size for thumbnail
         offset (float) : offset percentage from actual bounding box prediction
         conversion_dpi (int) : pdf-to-image conversion resolution
         compression_level (int) : cropped pdf compression level (ghostscript)
         compression_wait (int) : seconds to wait for compression
-
-    Returns
-        (list) : list of 'process_document' function outputs
     '''
     inputs = glob.glob(input_path+"*.pdf")
     model = brain["model"]
@@ -243,7 +256,7 @@ def crop_documents(input_path, output_path, brain, threshold=0.75, thumbsize=190
     for j,path in enumerate(inputs):
         logging.info(f"Processing {j+1} / {len(inputs)} PDFs\n")
         res = process_document(path, model, feature_extractor, threshold, conversion_dpi)
-        crop_document(res, output_path, thumbsize, offset, compression_level,compression_wait)
+        crop_document(res, output_path, categories, thumbsize, offset, compression_level,compression_wait)
     logging.info("Done")
 
 
@@ -252,7 +265,7 @@ def process_document(pdf, model, feature_extractor, threshold=0.75, conversion_d
     Predicts bounding boxes on a single document
 
     Parameters:
-        pdf (string|bytes) : path or bytes stream of pdf file
+        pdf (string|bytes) : path or byte-stream of pdf file
         model (Detr) : trained Detr model
         feature_extractor (DetrFeatureExtractor) : Detr feature extractor object from huggingface transformers
         threshold (float) : level of accepted confidence for output predictions
@@ -260,8 +273,8 @@ def process_document(pdf, model, feature_extractor, threshold=0.75, conversion_d
 
     Returns
         (dict) : dictionary with fields ->
-            predictions (list) : 'infer' function output
-            path (string) : path of pdf file
+            -predictions (list) : 'infer' function output
+            -path (string) : path of pdf file
     '''
     logging.info("\tConverting PDF to images...")
     images = convert_pdf_to_images(pdf, dpi=conversion_dpi)
@@ -270,34 +283,44 @@ def process_document(pdf, model, feature_extractor, threshold=0.75, conversion_d
     return {"predictions":predictions, "pdf":pdf}
 
 
-def crop_document(processed_doc, output_path, thumbsize=190, offset=0.01, compression_level=4,compression_wait=300):
+def crop_document(processed_doc, output_path, categories, thumbsize=190, offset=0.01, compression_level=4,compression_wait=300):
     '''
     Crops a single PDF document
 
     Parameters:
         processed_doc (dict) : 'process_document' function output
         output_path (string) : directory to save the croppped results
+        categories (dict) : dictionary containing information about prediction classes containing fields ->
+            -label (dict) : mapping of label number to label name
+            -output_fs (dict) : output file structure for each label
+                               eg : {"label_1" : {},
+                                     "label_2" : { "field_1" : {},
+                                                   "field_2" : {"subfield_1":{}}},
+                                     "label_3" : { "field_1" : {} }}
         thumbsize (int) : size for thumbnail
         offset (float) : offset percentage from actual bounding box prediction
         compression_level (int) : cropped pdf compression level (ghostscript)
         compression_wait (int) : seconds to wait for compression
     '''
-    fs_structure = {"images"   : {"pdf":{"optimized":{},"original":{}}, "png":{}, "thumbs":{}},
-                    "drawings" : {"pdf":{"optimized":{},"original":{}}, "png":{}, "thumbs":{}}}
+    # fs_structure = {"images"   : {"pdf":{"optimized":{},"original":{}}, "png":{}, "thumbs":{}},
+    #                 "drawings" : {"pdf":{"optimized":{},"original":{}}, "png":{}, "thumbs":{}}}
+    fs_structure = dict(map(lambda d: [d['label'],d['output_fs']],  categories.values()))
+    label_map = dict(map(lambda d: [int(d[0]),d[1]['label']], categories.items()))
     pdf = processed_doc["pdf"]
     predictions = processed_doc["predictions"]
     fs = create_file_structure(pdf, output_path, fs_structure)
-    process_pages(pdf,predictions,fs,thumbsize,offset,compression_level,compression_wait)
+    process_pages(pdf,predictions,fs,label_map,thumbsize,offset,compression_level,compression_wait)
 
 
-def process_pages(pdf, predictions, fs, thumbsize=190, offset=0.01, compression_level=4, compression_wait=300 ):
+def process_pages(pdf, predictions, fs, label_map, thumbsize=190, offset=0.01, compression_level=4, compression_wait=300 ):
     '''
     Crops a single PDF document - called by 'crop_document' function
 
     Parameters:
-        pdf (string|bytes) : path or bytes stream of PDF file
+        pdf (string|bytes) : path or byte-stream of PDF file
         predictions (list) : list of 'process_document' function outputs
         fs (dict) : output of 'create_fs' function - to save results
+        label_map (dict) : category id to category name
         thumbsize (int) : size for thumbnail
         offset (float) : offset percentage from actual bounding box prediction
         compression_level (int) : cropped pdf compression level (ghostscript)
@@ -314,7 +337,7 @@ def process_pages(pdf, predictions, fs, thumbsize=190, offset=0.01, compression_
         page = doc[page_no]
         prediction = predictions[page_no]
         if len(prediction['bboxes']) > 0:
-            process_page(page, prediction, indexed_bboxes[page_no], fs, offset, thumbsize, compression_level,compression_wait)
+            process_page(page, prediction, indexed_bboxes[page_no], fs, label_map, offset, thumbsize, compression_level,compression_wait)
         else:
             logging.info("\t\t- nothing found in this page")
         doc.close()
@@ -322,7 +345,7 @@ def process_pages(pdf, predictions, fs, thumbsize=190, offset=0.01, compression_
 
 
 @timer_print(indentation="\t\t")
-def process_page(page,prediction,indexed_bboxes, fs, offset, thumbsize, compression_level,compression_wait):
+def process_page(page,prediction,indexed_bboxes, fs, label_map, offset, thumbsize, compression_level,compression_wait):
     '''
     Crops a single PDF page - called by 'process_pages' function
 
@@ -331,6 +354,7 @@ def process_page(page,prediction,indexed_bboxes, fs, offset, thumbsize, compress
         prediction (dict) : 'infer' function output
         indexed_bboxes (4-n array) : 'get_indexed_images' function output
         fs (dict) : output of 'create_fs' function - to save results
+        label_map (dict) : category id to category name
         offset (float) : offset percentage from actual bounding box prediction
         thumbsize (int) : size for thumbnail
         compression_level (int) : cropped pdf compression level (ghostscript)
@@ -343,12 +367,12 @@ def process_page(page,prediction,indexed_bboxes, fs, offset, thumbsize, compress
     else:
         needs_offset = np.array(len(prediction['bboxes'])*[1])
     offsets = np.array(needs_offset)*offset
-    process_bboxes(page, prediction, fs, offsets, thumbsize, compression_level,compression_wait)
+    process_bboxes(page, prediction, fs, label_map, offsets, thumbsize, compression_level,compression_wait)
     print("")
 
 
 
-def process_bboxes(page, prediction, fs, offsets=None, thumbsize=190, compression_level=4, compression_wait=300):
+def process_bboxes(page, prediction, fs, label_map, offsets=None, thumbsize=190, compression_level=4, compression_wait=300):
     '''
     Processes and saves all bounding boxes in a single page - called by 'process_pages' function
 
@@ -356,6 +380,7 @@ def process_bboxes(page, prediction, fs, offsets=None, thumbsize=190, compressio
         page (fitz.Page) : pdf page
         prediction (dict) : 'infer' function output
         fs (dict) : output of 'create_fs' function - to save results
+        label_map (dict) : category id to category name
         offsets (list|None) : offset percentage for each box
         thumbsize (int) : size for thumbnail
         compression_level (int) : cropped pdf compression level (ghostscript)
@@ -367,9 +392,9 @@ def process_bboxes(page, prediction, fs, offsets=None, thumbsize=190, compressio
     for i,bbox in enumerate(page_bboxes):
         logging.info(f"\t\t- processing area {i+1} / {len(page_bboxes)}")
         res = process_bbox(bbox, page, thumbsize)
-        lbl = 'drawings' if labels[i]==1 else 'images'
+        lbl = label_map[labels[i]] #'drawings' if labels[i]==1 else 'images'
         fname = f"{page.number+1}_{i+1}"
-        save_cropped(res, fs[lbl], fname , compression_level, compression_wait)
+        save_cropped(res, fs[lbl], fs, fname, compression_level, compression_wait)
         logging.info(f"\t\t\tsaved")
         res['drawing'].close()
 
@@ -385,9 +410,9 @@ def process_bbox(bbox, page, thumbsize):
 
     Returns:
         (dict) : dictionary with fields ->
-            drawing (fitz.Document) : cropped PDF file
-            image (PIL.Image) : cropped PDF file as image
-            thumbnail (PIL.Image) : cropped PDF file as thumbnail image
+            -drawing (fitz.Document) : cropped PDF file
+            -image (PIL.Image) : cropped PDF file as image
+            -thumbnail (PIL.Image) : cropped PDF file as thumbnail image
     '''
     drawing = crop_drawing(bbox, page)
     image = image_from_pdf_page(drawing[0],dpi=300)
@@ -434,26 +459,32 @@ def make_thumbnail(image, size=(190,190), bg_color=(255, 255, 255, 0)):
     return background
 
 
-def save_cropped(crop, dst, name, compression_level=4, wait=300):
+
+def save_cropped(crop, root, fs, name, compression_level=4, wait=300):
     '''
     Saves a cropped object into a file structure - called by 'process_bboxes' function
 
     Parameters:
         crop (dict) : output of 'process_bbox' function
-        dst (string) : path
+        root (string) : root path
+        fs (dict) : output of 'create_fs' function - to save results
         name (string) : name for the new file
         compression_level (int) : cropped pdf compression level (ghostscript)
         save_original_pdf (bool) : whether to save the croppped pdf in original size too
         wait (int) : seconds to wait for compression
     '''
-    fname_img = f"{dst}/png/element_{name}.png"
-    fname_thb = f"{dst}/thumbs/thumbnail_{name}.png"
-    fname_drw = f"{dst}/pdf/original/element_{name}.pdf"
-    fname_cmp = f"{dst}/pdf/optimized/element_{name}.pdf"
-    crop['image'].save( fname_img, dpi=(300, 300) )
-    crop['thumbnail'].save( fname_thb, dpi=(100, 100))
-    crop['drawing'].save( fname_drw )
-    try_to_compress( wait, compress_pdf, fname_drw, fname_cmp, compression_level )
+    # fs_paths = [*fs.values()]
+    # fs_leafs = [*filter(lambda x: len([*filter(lambda y: x in y, set.difference(set(fs_paths),set([x])))])==0 , fs_paths)]
+    # fs_leafs = np.unique([*map(lambda s: "/".join(s.split("/")[2:]), fs_leafs)]).tolist()
+    element = f"element_{name}"
+    fname_img = f"{root}/png/{element}.png"
+    fname_thb = f"{root}/thumbs/{element}.png"
+    fname_drw = f"{root}/pdf/original/{element}.pdf"
+    fname_cmp = f"{root}/pdf/optimized/{element}.pdf"
+    crop['image'].save(fname_img, dpi=(300, 300) )
+    crop['thumbnail'].save(fname_thb, dpi=(100, 100))
+    crop['drawing'].save(fname_drw)
+    try_to_compress(wait, compress_pdf, fname_drw, fname_cmp, compression_level)
 
 
 def rescale_bboxes(out_bbox, size, offsets=None):
@@ -688,4 +719,4 @@ def create_fs(dicts, roots, parent, paths=[]):
     else:
         _ = [*map(lambda p: os.mkdir(p) if not os.path.exists(p) else None, paths)]
         paths_dict = dict(map(lambda s: [s.replace(parent+"/","").replace("/","_"), s + "/"], paths))
-        return paths_dict        
+        return paths_dict
