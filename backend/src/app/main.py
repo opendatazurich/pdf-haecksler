@@ -1,4 +1,4 @@
-from functions import *
+from .functions import *
 import warnings
 warnings.filterwarnings("ignore")
 transformers.utils.logging.set_verbosity_error()
@@ -15,8 +15,16 @@ COMPRESSION_LEVEL = int(os.getenv("COMPRESSION_LEVEL")) # 4 (ghostscript compres
 COMPRESSION_WAIT = int(os.getenv("COMPRESSION_WAIT"))   # 300 (seconds)
 MODEL = "model/model.ckpt"
 MODEL_BASIS = "facebook/detr-resnet-50"
-INPUT_PATH  = "../../data/input_dir/"
-OUTPUT_PATH = "../../data/output_dir/"
+OUTPUT_PATH = "data/tmp/"
+
+################
+## CATEGORIES ##
+################
+
+
+CATEGORIES = { 0 : { "label":"image"  , "output_fs": {"pdf":{"optimized":{},"original":{}}, "png":{}, "thumbs":{}} },
+               1 : { "label":"drawing", "output_fs": {"pdf":{"optimized":{},"original":{}}, "png":{}, "thumbs":{}} }}
+
 
 ###################
 ## LOAD ML MODEL ##
@@ -30,9 +38,18 @@ model_trained = model.load_from_checkpoint(MODEL,num_labels=labels_no,model_basi
 BRAIN = {"model":model_trained, "feature_extractor":feature_extractor}
 logging.info("\n\n")
 
-##################
-## RUN CROPPING ##
-##################
+####################
+## FUNCTION CALLS ##
+####################
 
-res = crop_documents(INPUT_PATH, OUTPUT_PATH, BRAIN, THRESHOLD, THUMB_SIZE,
-                     CROP_OFFSET, PROCESSING_RES, COMPRESSION_LEVEL, COMPRESSION_WAIT)
+def process_pdf_stream(stream, fname, user=None):
+    logging.info(f"\tUser: {user} - File: {fname}\n")
+    user = f"{user}/" if user else ""
+    if not os.path.exists(OUTPUT_PATH+user):
+        os.mkdir(OUTPUT_PATH+user)
+    out = OUTPUT_PATH+user+fname
+    crop_document_stream(stream, out, BRAIN, CATEGORIES, THRESHOLD, THUMB_SIZE,
+                          CROP_OFFSET, PROCESSING_RES, COMPRESSION_LEVEL, COMPRESSION_WAIT)
+    zpath = shutil.make_archive(out,'zip',out)
+    shutil.rmtree(out)
+    return zpath

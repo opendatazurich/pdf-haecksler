@@ -2,7 +2,8 @@
 *.ipynb_checkpoints
 *.DS_Store
 *.env
-model/*
+backend/model/*
 *.ckpt
 *.log
 logs/*
+db/*
