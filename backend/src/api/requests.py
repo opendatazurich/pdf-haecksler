@@ -19,11 +19,11 @@ async def upload_file_unprotected(file: UploadFile = File(...)):
                              media_type = "application/x-zip-compressed",
                              headers = { f"Content-Disposition":f"attachment;filename={fname}" } )
 
-@router.post("/process-pdf")
+@router.get("/process-pdf")
 async def upload_file(file: UploadFile = File(...), username=Depends(auth_handler.auth_wrapper)):
     content = await file.read()
     fname = file.filename.split(".")[0]
-    zpath = process_pdf_stream(content, fname )
+    zpath = process_pdf_stream(content, fname, username )
     with open(zpath,"rb") as f: bstring = f.read()
     io = BytesIO(bstring)
     os.remove(zpath)

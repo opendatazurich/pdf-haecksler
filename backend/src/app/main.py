@@ -22,7 +22,6 @@ OUTPUT_PATH = "data/tmp/"
 ################
 
 
-
 CATEGORIES = { 0 : { "label":"image"  , "output_fs": {"pdf":{"optimized":{},"original":{}}, "png":{}, "thumbs":{}} },
                1 : { "label":"drawing", "output_fs": {"pdf":{"optimized":{},"original":{}}, "png":{}, "thumbs":{}} }}
 
@@ -52,5 +51,5 @@ def process_pdf_stream(stream, fname, user=None):
     crop_document_stream(stream, out, BRAIN, CATEGORIES, THRESHOLD, THUMB_SIZE,
                           CROP_OFFSET, PROCESSING_RES, COMPRESSION_LEVEL, COMPRESSION_WAIT)
     zpath = shutil.make_archive(out,'zip',out)
-    shutil.rmtree(OUTPUT_PATH+user) if user!="" else shutil.rmtree(out)
+    shutil.rmtree(out)
     return zpath

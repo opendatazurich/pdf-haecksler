@@ -126,9 +126,9 @@ def infer(images, model, feature_extractor, threshold = 0.75):
 
     Returns:
         (list) : of dictionaries with fields ->
-            bboxes (list) : bounding boxes,
-            labels (list) : labels,
-            probs  (list) : probabilities
+            -bboxes (list) : bounding boxes,
+            -labels (list) : labels,
+            -probs  (list) : probabilities
     '''
     # convert bbox from x_c, y_c, w, h to xmin,ymin,xmax,ymax
     f_bbox = lambda b: np.array([b[:,0] - b[:,2]/2, b[:,1] - b[:,3]/2, b[:,0] + b[:,2]/2, b[:,1] + b[:,3]/2]).T
@@ -165,7 +165,7 @@ def plot_results(image, prediction, label_map, lw = 2, fsz = 10, offset=None):
     boxes = np.array(prediction["bboxes"])
     probs = np.array(prediction["probs"])
     boxes = rescale_bboxes(boxes,image.size,offsets=offsets)
-    texts = label_map # { 0:"image", 1:"drawing" }
+    texts = label_map
     r = np.linspace(0,1,sz)
     g = np.linspace(0,1,sz)
     b = np.linspace(1,0,sz)
@@ -302,8 +302,6 @@ def crop_document(processed_doc, output_path, categories, thumbsize=190, offset=
         compression_level (int) : cropped pdf compression level (ghostscript)
         compression_wait (int) : seconds to wait for compression
     '''
-    # fs_structure = {"images"   : {"pdf":{"optimized":{},"original":{}}, "png":{}, "thumbs":{}},
-    #                 "drawings" : {"pdf":{"optimized":{},"original":{}}, "png":{}, "thumbs":{}}}
     fs_structure = dict(map(lambda d: [d['label'],d['output_fs']],  categories.values()))
     label_map = dict(map(lambda d: [int(d[0]),d[1]['label']], categories.items()))
     pdf = processed_doc["pdf"]

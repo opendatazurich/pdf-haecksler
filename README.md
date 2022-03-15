@@ -34,13 +34,13 @@ example_file
 ### Contents
 - The folder `/backend` contains the code for the automated segmentation and the API
 - The api is under `/backend/src/api`
-- The folder `/db` is used by the backend as a postgresql database for API-related functions (user auth etc.)
-- Alembic is used to bridge CRUD operations between FastAPI and the postgresql database.
+- The folder `/db` is used by the backend as a postgres database for the API-related processes (user auth etc.)
+- Alembic is used to bridge CRUD operations between FastAPI and the database
 - The main project code is under the `/backend/src/app` dir
 - The file `/backend/src/app/functions.py` contains all the segmentation functions and is called by `/backend/src/app/main.py`.
-- The trained model is <b>not</b> included in the repo, but must be added manually in `/model` as `model/model.ckpt`.
+- The trained model is <b>not</b> included in the repo, but must be added manually in `/backend/model` as `backend/model/model.ckpt`.
 
-*!!! The current version of the trained model, as well as the code configuration in this repository is working for PDF files that contain architectural drawings and renders. In the future, more categories can be added (like texts or tables). This will require an updated `model.ckpt` file (which is out of the scope of this repository), as well as  some changes in the `/backend/src/app/function.py` file.*
+*!!! The current version of the trained model, as well as the code configuration in this repository is working for PDF files that contain architectural drawings and renders. In the future more categories can be added (like texts or tables). This will require an updated `model.ckpt` file (which is out of the scope of this repository), as well as some minor changes in the `/backend/src/app/` files.*
 
 
 ### Install
@@ -49,20 +49,20 @@ example_file
 3. Build the container (`docker-compose build`)
 
 ### Use
-1. In `docker-compose.yml` optionally configure the following parameters:
-    - `CROP_OFFSET` : percentage of offset of the detected bounding box (eg 0.04)
+1. In `docker-compose.yml` <b>optionally</b> configure the following parameters:
+    - `CROP_OFFSET` : percentage of offset of the detected bounding box (recommended: 0.04)
     - `THUMB_SIZE`  : pixel size for thumbnails (eg 190)
     - `THRESHOLD`   : threshold value above which the predicted bounding boxes are considered valid (recommended: ~0.75)
     - `PROCESSING_RES` : dpi value for PDF-to-image conversion (recommended: 300)
     - `COMPRESSION_LEVEL` : Ghostscript compression category (recommended: 4)
-    - `COMPRESSION_WAIT` : seconds to wait until compression is skipped (eg 300 seconds) - it can become really slow for large documents.
+    - `COMPRESSION_WAIT` : seconds to wait until compression is skipped (eg 300 seconds) - *! compression can become really slow for certain documents so it's sometimes preferable to skip it after some processing time.*
 2. Run the Docker container (`docker-compose up`).
-3. Register as a user with a POST request at 127.0.0.1:8000/users/register by specifying *username* and *password*
-    <br>eg: `curl --header "Content-Type: application/json" --request POST --data '{"username": <USER>, "password": <PWD>}' 127.0.0.1:8000/users/register`
-4. Login with a POST request at 127.0.0.1:8000/users/login with your credentials and obtain Bearer Token
-    <br>eg: `curl --header "Content-Type: application/json" --request POST --data '{"username": <USER>, "password": <PWD>}' 127.0.0.1:8000/users/login`
-5. Using the token make a GET request at 127.0.0.1:8000/users/process-pdf including a PDF attachment
-    <br>eg: `curl -X GET "Authorization: Bearer <TOKEN>" -F  file=@"<INPUT>.pdf" http://127.0.0.1:8000/process-pdf > <OUTPUT>.zip`
+3. Register as a user with a POST request at 127.0.0.1:8000/users/register by specifying *username* and *password*. eg:
+    <br>`curl -X POST -H "Content-Type: application/json" -d '{"username": <USER>, "password": <PWD>}' http://127.0.0.1:8000/users/register`
+4. Login with a POST request at 127.0.0.1:8000/users/login with your credentials and obtain Bearer Token. eg:
+    <br>`curl -X POST -H "Content-Type: application/json" -d '{"username": <USER>, "password": <PWD>}' http://127.0.0.1:8000/users/login`
+5. Using the token make a GET request at 127.0.0.1:8000/users/process-pdf including a PDF attachment. eg:
+    <br>`curl -X GET -H "Authorization: Bearer <TOKEN>" -F file=@"<INPUT>.pdf" http://127.0.0.1:8000/process-pdf > <OUTPUT>.zip`
 
 
 ### Credits
